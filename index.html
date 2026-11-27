@@ -240,6 +240,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--plum);outline-o
 .sw:checked{background:var(--mint)}
 .sw:checked::after{left:28px}
 input[type=range]{width:150px;accent-color:var(--mint)}
+select{font:inherit;font-size:16px;padding:9px 12px;border-radius:12px;border:2px solid #e8d9b8;background:#fff;color:var(--ink);max-width:62%}
 input[type=text]{font:inherit;font-size:16px;padding:10px 12px;border-radius:12px;border:2px solid #e8d9b8;width:100%;background:#fff;user-select:text;-webkit-user-select:text}
 .note{font-size:14px;color:#6b7891}
 /* result */
@@ -328,7 +329,7 @@ const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const CN='零一二三四五六七八九'.split('');
 function kj(a,b){const p=a*b;let s;if(p<10)s='得'+CN[p];else{const t=Math.floor(p/10),o=p%10;s=t===1?(o?'十'+CN[o]:'一十'):CN[t]+'十'+(o?CN[o]:'')}return CN[a]+CN[b]+s}
-const qSay=(a,b)=>CN[a]+'乘'+CN[b];
+const qSay=(a,b)=>CN[a]+'乘以'+CN[b];
 function starPath(cx,cy,R,r){let d='';for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,q=i%2?r:R;d+=(i?'L':'M')+(cx+Math.cos(a)*q).toFixed(1)+' '+(cy+Math.sin(a)*q).toFixed(1)}return d+'Z'}
 const STAR=`<svg viewBox="0 0 24 24"><path d="${starPath(12,12.6,11.5,5.2)}" stroke-linejoin="round"/></svg>`;
 const HEART=`<svg viewBox="0 0 24 24"><path d="M12 21s-8.5-5.3-8.5-11.2A4.7 4.7 0 0 1 12 7a4.7 4.7 0 0 1 8.5 2.8C20.5 15.7 12 21 12 21z"/></svg>`;
@@ -391,7 +392,7 @@ const PW=[[8,66],[17.5,30],[27,66],[36.5,28],[46,64],[55.5,28],[65,66],[74.5,30]
 
 /* ---------- state ---------- */
 const KEY='jiujiu-adventure-v1';
-const DEF={stars:{},cleared:{},stats:{},stickers:{},bossWon:0,settings:{voice:true,sound:true,music:true,rate:.9,unlock:false,name:''}};
+const DEF={stars:{},cleared:{},stats:{},stickers:{},bossWon:0,settings:{voice:true,sound:true,music:true,rate:.9,unlock:false,name:'',vox:'hc'}};
 let S;
 const merge=d=>{const o=JSON.parse(JSON.stringify(DEF));for(const k in (d||{})){if(k==='settings')Object.assign(o.settings,d.settings);else o[k]=d[k]}return o};
 const load=()=>{try{return JSON.parse(localStorage.getItem(KEY))}catch(e){return null}};
@@ -414,13 +415,26 @@ function bnote(m,t,d,v,type){const c=AC,o=c.createOscillator(),g=c.createGain();
 function bgmStart(){const c=ac();if(!c||bgmT||!S.settings.music)return;bgmNext=c.currentTime+.1;bgmT=setInterval(()=>{while(bgmNext<c.currentTime+.35){const n=MEL[bgmStep%MEL.length];if(n)bnote(n,bgmNext,.26,.035,'triangle');if(bgmStep%4===0)bnote(BASS[(bgmStep/4)%BASS.length],bgmNext,.5,.05,'sine');bgmNext+=.2;bgmStep++}},90)}
 function bgmStop(){clearInterval(bgmT);bgmT=null}
 
-/* ---------- voice ---------- */
+/* ---------- voice：預錄的台灣華語語音（曉臻／曉雨），沒有檔案時改用裝置語音 ---------- */
+const L={"start": "出發囉！一起去打敗乘法怪獸吧！", "m_intro": "翻兩張牌，找出算式和答案", "win": "太棒了！過關囉！", "win_boss": "太厲害了！你打敗魔王，是九九乘法小勇者！", "lose": "差一點點，沒關係，再試一次！", "lock": "要先打敗前一座島的怪獸喔", "lock_boss": "要先打敗九座島的怪獸，才能進魔王城喔", "boss_intro": "魔王城，最終決戰！準備好了嗎？", "ans": "答案是", "timeup": "時間到，答案是", "fly": "飛走了！答案是", "i1": "一號島，棉花糖草原", "i2": "二號島，蘑菇森林", "i3": "三號島，彩虹瀑布", "i4": "四號島，仙人掌沙漠", "i5": "五號島，冰雪山谷", "i6": "六號島，珊瑚海灣", "i7": "七號島，火山谷", "i8": "八號島，星空雲城", "i9": "九號島，糖果城堡"};
+const VOX={hc:'曉臻（溫柔女聲）',hy:'曉雨（活潑女聲）'};
+const CLIP=new Map();
+for(let a=1;a<=9;a++)for(let b=1;b<=9;b++){CLIP.set(kj(a,b),'k'+a+b);CLIP.set(qSay(a,b),'q'+a+b)}
+for(const k in L)CLIP.set(L[k],k);
 let VOICE=null;
 const hasTTS='speechSynthesis' in window;
-function pickVoice(){try{const v=speechSynthesis.getVoices();VOICE=v.find(x=>/zh[-_]TW/i.test(x.lang))||v.find(x=>/zh[-_](HK|Hant)/i.test(x.lang))||v.find(x=>/^zh/i.test(x.lang))||null}catch(e){}}
+function pickVoice(){try{const v=speechSynthesis.getVoices().filter(x=>/^(zh|cmn)/i.test(x.lang));const sc=x=>(/TW|Hant/i.test(x.lang)?100:/HK/i.test(x.lang)?30:10)+(/Natural|Neural|Online|Enhanced|Premium|加強|高音質|Siri/i.test(x.name)?40:0)+(/Google/i.test(x.name)?20:0);v.sort((a,b)=>sc(b)-sc(a));VOICE=v[0]||null}catch(e){}}
 if(hasTTS){pickVoice();try{speechSynthesis.addEventListener('voiceschanged',pickVoice)}catch(e){}}
-function say(text,o={}){return new Promise(res=>{if(!S.settings.voice||!hasTTS)return res();try{const u=new SpeechSynthesisUtterance(text);u.lang=VOICE?VOICE.lang:'zh-TW';if(VOICE)u.voice=VOICE;u.rate=Math.min(1.5,S.settings.rate*(o.rate||1));u.pitch=1.15;let done=false;const fin=()=>{if(!done){done=true;res()}};u.onend=fin;u.onerror=fin;setTimeout(fin,900+text.length*420/u.rate);const busy=speechSynthesis.speaking||speechSynthesis.pending;speechSynthesis.cancel();if(busy)setTimeout(()=>speechSynthesis.speak(u),60);else speechSynthesis.speak(u)}catch(e){res()}})}
-const hush=()=>{try{speechSynthesis.cancel()}catch(e){}};
+const AU=new Audio();AU.preload='auto';
+let sayTok=0,auDone=null,ttsCut=0;
+const useClips=()=>S.settings.vox!=='device';
+const clipUrl=id=>`audio/${VOX[S.settings.vox]?S.settings.vox:'hc'}/${id}.mp3`;
+function playClip(id){return new Promise(res=>{let done=false,t=0;const fin=ok=>{if(done)return;done=true;AU.onended=AU.onerror=null;clearTimeout(t);auDone=null;res(ok)};auDone=()=>fin(true);AU.onended=()=>fin(true);AU.onerror=()=>fin(false);t=setTimeout(()=>fin(true),8000);try{AU.src=clipUrl(id);AU.preservesPitch=true;AU.playbackRate=Math.max(.6,Math.min(1.5,S.settings.rate/.9));const p=AU.play();if(p&&p.catch)p.catch(()=>fin(false))}catch(e){fin(false)}})}
+function ttsOne(text,o){return new Promise(res=>{if(!hasTTS)return res();try{const u=new SpeechSynthesisUtterance(text);u.lang=VOICE?VOICE.lang:'zh-TW';if(VOICE)u.voice=VOICE;u.rate=Math.min(1.5,S.settings.rate*(o.rate||1));u.pitch=1.05;let done=false;const fin=()=>{if(!done){done=true;res()}};u.onend=fin;u.onerror=fin;setTimeout(fin,900+text.length*420/u.rate);const go=()=>speechSynthesis.speak(u);if(Date.now()-ttsCut<90)setTimeout(go,70);else go()}catch(e){res()}})}
+function stopSound(){try{AU.pause()}catch(e){}if(auDone)auDone();try{if(hasTTS&&(speechSynthesis.speaking||speechSynthesis.pending)){speechSynthesis.cancel();ttsCut=Date.now()}}catch(e){}}
+async function say(parts,o={}){const tok=++sayTok;stopSound();if(!S.settings.voice)return;for(const t of [].concat(parts)){if(tok!==sayTok)return;const id=useClips()&&CLIP.get(t);if(id&&await playClip(id))continue;if(tok!==sayTok)return;await ttsOne(t,o)}}
+const hush=()=>{sayTok++;stopSound()};
+function warm(ids){if(!useClips()||location.protocol==='file:')return;ids.forEach((id,i)=>setTimeout(()=>{fetch(clipUrl(id)).catch(()=>{})},i*30))}
 
 /* ---------- game shell ---------- */
 const G={timers:[],raf:0,cd:0,alive:false,cfg:null};
@@ -440,7 +454,7 @@ function bindPad(root,fn){root.querySelector('.pad').onclick=e=>{const b=e.targe
 function float(txt,cls,root){const r=root||$('#gMain');const d=document.createElement('div');d.className='fl '+cls;d.textContent=txt;r.appendChild(d);setTimeout(()=>d.remove(),2100)}
 function burst(parent,x,y,col){for(let i=0;i<10;i++){const p=document.createElement('i');p.className='pt';const a=i/10*Math.PI*2,r=40+Math.random()*30;p.style.cssText=`left:${x}px;top:${y}px;background:${i%2?col:'#ffd43b'};--dx:${Math.cos(a)*r}px;--dy:${Math.sin(a)*r}px`;parent.appendChild(p);setTimeout(()=>p.remove(),700)}}
 const praise=()=>PRAISE[Math.floor(Math.random()*PRAISE.length)];
-const run=cfg=>MODES[cfg.stage](cfg);
+const run=cfg=>{warm(cfg.pool.flatMap(([a,b])=>['k'+a+b,'q'+a+b]).slice(0,40).concat(['ans','timeup','fly','win','lose']));MODES[cfg.stage](cfg)};
 
 /* ---------- mode: 口訣學堂 ---------- */
 function mLearn(cfg){
@@ -502,8 +516,8 @@ function mBalloon(cfg){
     if(o.v===p){answered=true;o.live=false;o.el.classList.add('pop');SFX.pop();SFX.ok();burst(st,cx,cy,BCOL[ok%6]);setTimeout(()=>o.el.remove(),300);rec(cur[0],cur[1],true);ok++;prog(ok/GOAL);float(praise(),'ok',st);say(kj(cur[0],cur[1]));clear(o);
       if(ok>=GOAL)later(()=>finish(cfg,hp,{win:true,title:'氣球全部打完！',msg:`還剩 ${hp} 顆愛心`}),1100);else later(ask,1100)}
     else{o.live=false;o.el.classList.add('bad');SFX.bad();setTimeout(()=>{o.el.classList.add('fade');setTimeout(()=>o.el.remove(),450)},300);rec(cur[0],cur[1],false);hp--;hearts(hp,3,true);
-      if(hp<=0){answered=true;clear();say('答案是，'+kj(cur[0],cur[1]));later(()=>finish(cfg,0,{win:false}),1500)}}}
-  function miss(){answered=true;hp--;hearts(hp,3,true);SFX.bad();rec(cur[0],cur[1],false);float(`${cur[0]}×${cur[1]}=${cur[0]*cur[1]}`,'tip',st);say('飛走了！答案是，'+kj(cur[0],cur[1]));clear();if(hp<=0)later(()=>finish(cfg,0,{win:false}),1600);else later(ask,1900)}
+      if(hp<=0){answered=true;clear();say([L.ans,kj(cur[0],cur[1])]);later(()=>finish(cfg,0,{win:false}),1500)}}}
+  function miss(){answered=true;hp--;hearts(hp,3,true);SFX.bad();rec(cur[0],cur[1],false);float(`${cur[0]}×${cur[1]}=${cur[0]*cur[1]}`,'tip',st);say([L.fly,kj(cur[0],cur[1])]);clear();if(hp<=0)later(()=>finish(cfg,0,{win:false}),1600);else later(ask,1900)}
   let lt=performance.now();
   const step=t=>{if(!G.alive)return;const dt=Math.min(50,t-lt)/1000;lt=t;for(const o of bl){if(!o.live)continue;o.y-=o.sp*dt;o.el.style.transform=`translate(${o.x+Math.sin(t/600+o.ph)*10}px,${o.y}px)`;if(o.y<-bw*1.5){o.live=false;o.el.remove();if(!answered&&o.v===cur[0]*cur[1])miss()}}bl=bl.filter(o=>o.live||o.el.isConnected);G.raf=requestAnimationFrame(step)};
   G.raf=requestAnimationFrame(step);later(ask,500);
@@ -520,7 +534,7 @@ function mQuick(cfg){
   function ask(){if(qi>=N)return done();cur=next();const[a,b]=cur;inp='';busy=false;$('#qQ').textContent=`${a} × ${b}`;A.textContent='';A.className='ans';$('#qKj').textContent=`${CN[a]}${CN[b]}……？`;say(qSay(a,b));countdown(15,$('#qT'),()=>{if(!busy)submit(true)})}
   function submit(timeout){if(busy)return;busy=true;stopCd();const[a,b]=cur,p=a*b,ok=!timeout&&+inp===p;rec(a,b,ok);qi++;prog(qi/N);
     if(ok){right++;SFX.ok();A.classList.add('ok');tr.style.left=(4+right*92/N)+'%';say(kj(a,b));later(ask,1100)}
-    else{SFX.bad();A.innerHTML=(inp?`<s class="wr">${esc(inp)}</s> `:'')+p;A.classList.add('ok');$('#qKj').textContent=kj(a,b);say((timeout?'時間到，':'')+'答案是，'+kj(a,b));later(ask,2300)}}
+    else{SFX.bad();A.innerHTML=(inp?`<s class="wr">${esc(inp)}</s> `:'')+p;A.classList.add('ok');$('#qKj').textContent=kj(a,b);say([timeout?L.timeup:L.ans,kj(a,b)]);later(ask,2300)}}
   bindPad(m,k=>{if(busy)return;if(k==='del')inp=inp.slice(0,-1);else if(k==='ok'){if(inp)submit();return}else if(inp.length<2)inp+=k;A.textContent=inp;if(inp.length===2)submit()});
   $('#qSay').onclick=()=>{if(cur)say(qSay(cur[0],cur[1]))};
   function done(){const s=right>=9?3:right>=7?2:right>=5?1:0;finish(cfg,s,{win:s>0,title:s?'火車到站囉！':'',msg:`答對 ${right} / ${N} 題`})}
@@ -552,7 +566,7 @@ function mBattle(cfg){
     if(ok){combo++;const dmg=combo>=3?2:1;hp=Math.max(0,hp-dmg);SFX.ok();anim(fH,'atkR');say(kj(a,b));
       later(()=>{SFX.hit();anim(fM,'hurt');slash();float(dmg>1?`暴擊 -${dmg}`:`-${dmg}`,'dmg',fx);setHp();if(combo>=2)float(`${combo} 連擊！`,'cmb',fx)},230);
       if(hp===0){later(()=>{anim(fM,'ko');SFX.win()},850);later(()=>finish(cfg,boss?(hh>=4?3:hh>=2?2:1):hh,{win:true}),2000)}else later(ask,1400)}
-    else{combo=0;hh--;hearts(hh,MAXH,true);SFX.bad();anim(fM,'atkL');later(()=>{SFX.hit();anim(fH,'hurt')},250);float(`${a} × ${b} = ${p}`,'tip',fx);say((v===null?'時間到，':'')+'答案是，'+kj(a,b));
+    else{combo=0;hh--;hearts(hh,MAXH,true);SFX.bad();anim(fM,'atkL');later(()=>{SFX.hit();anim(fH,'hurt')},250);float(`${a} × ${b} = ${p}`,'tip',fx);say([v===null?L.timeup:L.ans,kj(a,b)]);
       if(hh<=0)later(()=>finish(cfg,0,{win:false}),2100);else later(ask,2400)}}
   later(ask,600);
 }
@@ -625,7 +639,7 @@ const s3=n=>`<span class="s3">${[0,1,2].map(i=>STAR.replace('<svg','<svg class="
 const head=(t,sub,c,spr)=>`<div class="shd" style="--c:${c}">${spr?`<div class="spr">${spr}</div>`:''}<h2>${t}${sub?`<small>${sub}</small>`:''}</h2><button class="ib" data-close aria-label="關閉">${ic('x')}</button></div>`;
 function openIsland(n){const I=ISL[n];
   openSheet(head(`${n} 號島・${I.name}`,`${n} 的乘法　${n}×1 ～ ${n}×9`,I.col,sprite(I.mon))+`<div class="sbody">${STAGES.map(t=>`<button class="stg ${t.id==='battle'?'gate':''}" data-st="${t.id}" style="--c:${I.col}"><span class="si">${ic(t.icon)}</span><span class="st"><b>${t.name}${t.id==='battle'?'<em>過關</em>':''}</b><small>${t.id==='battle'?`打敗${I.mname}，開放下一座島`:t.desc}</small></span>${s3(S.stars[n+'-'+t.id]||0)}</button>`).join('')}</div>`,el=>{el.querySelectorAll('[data-st]').forEach(b=>b.onclick=()=>{closeSheet();startStage(n,b.dataset.st)})});
-  say(`${CN[n]}號島，${I.name}`)}
+  say(L['i'+n])}
 function openBoss(){openSheet(head('魔王城・最終決戰','2 到 9 的乘法全部混在一起',BOSS.col,sprite('boss'))+`<div class="sbody"><p style="margin-top:0">亂數魔王有 15 點血，每題只有 12 秒！選擇題和按數字輪流出現，連續答對 3 題會打出「暴擊」。你有 5 顆愛心。</p><button class="btn sun" style="width:100%" id="goBoss">${ic('sword')}挑戰魔王</button></div>`,el=>{el.querySelector('#goBoss').onclick=()=>{closeSheet();startBoss()}});say('魔王城，最終決戰！準備好了嗎？')}
 function openFree(){const sel=new Set([2,3]);let mode='battle';
   const M=[['match','翻牌配對','cards'],['balloon','氣球大作戰','balloon'],['quick','聽音快答','speaker'],['battle','怪獸對決','sword']];
@@ -648,14 +662,16 @@ function openSettings(){const s=S.settings;let armed=false;
   <label class="row"><span>音效</span><input type="checkbox" class="sw" id="sSound" ${s.sound?'checked':''}></label>
   <label class="row"><span>背景音樂</span><input type="checkbox" class="sw" id="sMusic" ${s.music?'checked':''}></label>
   <div class="row"><label for="sRate">說話速度</label><input type="range" id="sRate" min="0.6" max="1.3" step="0.1" value="${s.rate}"></div>
-  <div class="row"><span class="note">${!hasTTS?'這個瀏覽器不支援語音':VOICE?'語音：'+esc(VOICE.name):'找不到中文語音。請到系統設定加入「中文（台灣）」語音，或改用 Chrome / Safari'}</span><button class="btn small" id="sTest">${ic('speaker')}試聽</button></div>
+  <div class="row"><label for="sVox">說話的聲音</label><select id="sVox">${Object.entries(VOX).map(([k,v])=>`<option value="${k}" ${s.vox===k?'selected':''}>${v}</option>`).join('')}<option value="device" ${s.vox==='device'?'selected':''}>這台裝置的語音${VOICE?'（'+esc(VOICE.name)+'）':''}</option></select></div>
+  <div class="row"><span class="note">曉臻、曉雨是預先錄好的台灣華語語音，每台裝置聽起來都一樣。</span><button class="btn small" id="sTest">${ic('speaker')}試聽</button></div>
   <div class="row" style="flex-direction:column;align-items:stretch"><label for="sName">小勇者的名字（會寫在證書上）</label><input type="text" id="sName" maxlength="12" value="${esc(s.name||'')}" placeholder="例如：小明"></div>
   <label class="row"><span>家長模式：所有島嶼直接開放</span><input type="checkbox" class="sw" id="sUnlock" ${s.unlock?'checked':''}></label>
   <div class="row"><span>清除所有星星和紀錄</span><button class="btn small coral" id="sReset">重設進度</button></div></div>`,el=>{
     const ch=(id,key,fn)=>{el.querySelector(id).onchange=e=>{s[key]=e.target.checked;save();if(fn)fn()}};
     ch('#sVoice','voice');ch('#sSound','sound');ch('#sMusic','music',()=>{s.music?bgmStart():bgmStop();musicIcon()});ch('#sUnlock','unlock',renderMap);
+    el.querySelector('#sVox').onchange=e=>{s.vox=e.target.value;save();say([kj(3,4),kj(9,9)])};
     el.querySelector('#sRate').oninput=e=>{s.rate=+e.target.value;save()};
-    el.querySelector('#sTest').onclick=()=>say('三四十二，九九八十一');
+    el.querySelector('#sTest').onclick=()=>say([kj(3,4),kj(9,9)]);
     el.querySelector('#sName').oninput=e=>{s.name=e.target.value.slice(0,12);save()};
     el.querySelector('#sReset').onclick=e=>{if(!armed){armed=true;e.currentTarget.textContent='再按一次確定';return}S=merge({settings:S.settings});save();closeSheet();renderMap()}})}
 function musicIcon(){$('#bMusic').classList.toggle('off',!S.settings.music)}
@@ -670,7 +686,7 @@ function init(){
   $('#bMusic').onclick=()=>{S.settings.music=!S.settings.music;save();musicIcon();S.settings.music?bgmStart():bgmStop()};
   $('#bSet').onclick=openSettings;$('#nFree').onclick=openFree;$('#nStats').onclick=openStats;$('#nStick').onclick=openStick;
   $('#gBack').onclick=closeGame;
-  $('#goBtn').onclick=()=>{ac();bgmStart();$('#splash').classList.add('off');say('出發囉！一起去打敗乘法怪獸吧！')};
+  $('#goBtn').onclick=()=>{ac();bgmStart();$('#splash').classList.add('off');say(L.start);warm(Object.keys(L))};
   const mapRO=new ResizeObserver(()=>drawMap());mapRO.observe($('#mapwrap'));
   renderMap();
 }
